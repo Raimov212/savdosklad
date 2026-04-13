@@ -18,6 +18,7 @@ let salesTrendChartType = 'line';
 let currentTrendChart = null;
 let currentSourceChart = null;
 let miniSparklineCharts = [];
+let miniSparklineTimeout = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -504,6 +505,8 @@ function renderTopProductsList(products) {
   const container = document.getElementById('top-products-list');
   if (!container) return;
 
+  if (miniSparklineTimeout) clearTimeout(miniSparklineTimeout);
+
   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
   container.innerHTML = products.map((p, i) => `
@@ -523,7 +526,7 @@ function renderTopProductsList(products) {
         </div>
     `).join('');
 
-  // Cleanup previous instance
+  // Cleanup previous instances synchronously
   if (miniSparklineCharts) {
     miniSparklineCharts.forEach(c => {
       try { c.destroy(); } catch (e) { }
@@ -532,10 +535,16 @@ function renderTopProductsList(products) {
   miniSparklineCharts = [];
 
   // Mock sparklines
-  setTimeout(() => {
+  miniSparklineTimeout = setTimeout(() => {
     products.forEach((p, i) => {
-      const ctx = document.getElementById(`mini-sparkline-${i}`)?.getContext('2d');
+      const el = document.getElementById(`mini-sparkline-${i}`);
+      if (!el) return;
+      const ctx = el.getContext('2d');
       if (ctx) {
+        // Extra safety: check if chart already exists on this canvas
+        const existing = Chart.getChart(el);
+        if (existing) existing.destroy();
+
         const chart = new Chart(ctx, {
           type: 'line',
           data: {
